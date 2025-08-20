@@ -1,6 +1,9 @@
+// app/components/SkinAnalyzer.js (or wherever your component lives)
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
+
 
 const API_BASE = "https://n1omiadwic.execute-api.us-east-1.amazonaws.com/prod";
 
@@ -8,12 +11,51 @@ const prettyName = (k) =>
   k.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 
 export default function SkinAnalyzer() {
+  const [mode, setMode] = useState("upload"); // 'upload' | 'qr'
   const [imageFile, setImageFile] = useState(null);
   const [catalogFile, setCatalogFile] = useState(null);
   const [typedCondition, setTypedCondition] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
+
+  // QR/session helpers
+  const [sessionId] = useState(() => Math.random().toString(36).slice(2, 10));
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    if (typeof window !== "undefined") setOrigin(window.location.origin);
+  }, []);
+
+  // Polling when in QR mode
+  useEffect(() => {
+    if (mode !== "qr" || imageFile) return;
+
+    let stop = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/upload/${sessionId}`, { cache: "no-store" });
+        if (res.ok) {
+          const ct = res.headers.get("content-type") || "image/jpeg";
+          const blob = await res.blob();
+          const file = new File([blob], `mobile-upload.${ct.split("/")[1] || "jpg"}`, { type: ct });
+          setImageFile(file);
+
+          // optional: delete from server store after retrieving
+          fetch(`/api/upload/${sessionId}`, { method: "DELETE" }).catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    // initial poll + interval
+    poll();
+    const id = setInterval(() => !stop && poll(), 2000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [mode, sessionId, imageFile]);
 
   const imgPreviewUrl = useMemo(
     () => (imageFile ? URL.createObjectURL(imageFile) : ""),
@@ -24,7 +66,7 @@ export default function SkinAnalyzer() {
 
   async function handleAnalyze() {
     if (!imageFile) {
-      setError("Please choose a face image.");
+      setError("Please choose or upload a face image.");
       return;
     }
     setBusy(true);
@@ -35,8 +77,7 @@ export default function SkinAnalyzer() {
       const fd = new FormData();
       fd.append("file", imageFile);
       if (catalogFile) fd.append("products", catalogFile);
-      if (typedCondition.trim())
-        fd.append("user_condition", typedCondition.trim());
+      if (typedCondition.trim()) fd.append("user_condition", typedCondition.trim());
 
       const res = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
@@ -71,17 +112,80 @@ export default function SkinAnalyzer() {
     <div className="max-w-5xl mx-auto p-4">
       <h1 className="text-2xl font-semibold mb-4">Skin Analysis</h1>
 
+      {/* Mode Toggle */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setMode("upload")}
+          className={`px-4 py-2 rounded-lg border ${mode === "upload" ? "bg-black text-white" : ""}`}
+        >
+          Upload Photo
+        </button>
+        <button
+          onClick={() => setMode("qr")}
+          className={`px-4 py-2 rounded-lg border ${mode === "qr" ? "bg-black text-white" : ""}`}
+        >
+          Scan QR on Mobile
+        </button>
+      </div>
+
       {/* Inputs */}
       <div className="grid md:grid-cols-2 gap-4 mb-4">
+        {/* Left: Image source (Upload or QR) */}
         <div className="border rounded-xl p-4">
-          <label className="block text-sm font-medium mb-2">Face image *</label>
-          <input
-            ref={imgInputRef}
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            className="block w-full"
-          />
+          {mode === "upload" ? (
+            <>
+              <label className="block text-sm font-medium mb-2">Face image *</label>
+              <input
+                ref={imgInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                className="block w-full"
+              />
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-600 mb-2">
+                Scan this QR with your phone to open the camera/upload page.
+              </p>
+              <div className="inline-block p-3 border rounded-xl">
+                {/* Guard origin for SSR */}
+                {origin ? (
+                  <QRCodeCanvas value={`${window.location.origin}/upload/${sessionId}`} />
+                ) : (
+                  <div className="text-sm text-gray-500">Preparing QR…</div>
+                )}
+              </div>
+
+              <div className="mt-3 text-sm text-gray-600">
+                Waiting for mobile upload… This page checks automatically every 2 seconds.
+              </div>
+              <div className="mt-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/upload/${sessionId}`, { cache: "no-store" });
+                      if (res.ok) {
+                        const ct = res.headers.get("content-type") || "image/jpeg";
+                        const blob = await res.blob();
+                        const file = new File(
+                          [blob],
+                          `mobile-upload.${ct.split("/")[1] || "jpg"}`,
+                          { type: ct }
+                        );
+                        setImageFile(file);
+                        fetch(`/api/upload/${sessionId}`, { method: "DELETE" }).catch(() => {});
+                      }
+                    } catch {}
+                  }}
+                  className="px-3 py-2 rounded-lg border"
+                >
+                  Check now
+                </button>
+              </div>
+            </>
+          )}
+
           {imgPreviewUrl && (
             <div className="mt-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -94,6 +198,7 @@ export default function SkinAnalyzer() {
           )}
         </div>
 
+        {/* Right: Catalog + condition + actions */}
         <div className="border rounded-xl p-4">
           <label className="block text-sm font-medium mb-2">
             Products file (Excel/CSV, optional)
@@ -145,10 +250,7 @@ export default function SkinAnalyzer() {
           <div className="text-sm text-gray-600">
             <strong>Latency:</strong> {data.latency_ms} ms
             {data.user_condition_echo ? (
-              <>
-                {" "}
-                · <strong>Condition:</strong> {data.user_condition_echo}
-              </>
+              <> · <strong>Condition:</strong> {data.user_condition_echo}</>
             ) : null}
           </div>
 
@@ -185,48 +287,32 @@ export default function SkinAnalyzer() {
                       className="w-full rounded-md border"
                     />
                   ) : (
-                    <div className="text-sm text-gray-500">
-                      No overlay returned.
-                    </div>
+                    <div className="text-sm text-gray-500">No overlay returned.</div>
                   )}
                   <p className="text-sm mt-2">{val?.advice}</p>
                 </div>
               );
             })}
           </div>
-            {
-                console.log("data" , data)
-                
-            }
-          {/* Recommendations */}
+
+          {/* Recommended Products (using concerns as rows as you had) */}
           <div>
             <h3 className="text-lg font-semibold mb-2">Recommended Products</h3>
             {data.concerns ? (
-                <ProductsTable rows={Object.entries(data.concerns).map(([name, values]) => ({
-                Concern: name,
-                Score: values.score,
-                Severity: values.severity,
-                Advice: values.advice,
-                }))} />
-            ) : (
-                <div className="text-sm text-gray-500">
-                No products matched. Upload a catalog with a{" "}
-                <code>Condition</code> column or refine inputs.
-                </div>
-            )}
-            </div>
-
-          {/* <div>
-            <h3 className="text-lg font-semibold mb-2">Recommended Products</h3>
-            {data.recommendations && data.recommendations.length > 0 ? (
-              <ProductsTable rows={data.recommendations} />
+              <ProductsTable
+                rows={Object.entries(data.concerns).map(([name, values]) => ({
+                  Concern: name,
+                  Score: values.score,
+                  Severity: values.severity,
+                  Advice: values.advice,
+                }))}
+              />
             ) : (
               <div className="text-sm text-gray-500">
-                No products matched. Upload a catalog with a{" "}
-                <code>Condition</code> column or refine inputs.
+                No products matched. Upload a catalog with a <code>Condition</code> column or refine inputs.
               </div>
             )}
-          </div> */}
+          </div>
         </div>
       )}
     </div>
@@ -236,18 +322,8 @@ export default function SkinAnalyzer() {
 function ProductsTable({ rows }) {
   const cols = useMemo(() => {
     const set = new Set();
-    rows.forEach((r) =>
-      Object.keys(r || {}).forEach((k) => set.add(k))
-    );
-    const common = [
-      "ProductName",
-      "Brand",
-      "Condition",
-      "Price",
-      "SKU",
-      "URL",
-      "Notes",
-    ];
+    rows.forEach((r) => Object.keys(r || {}).forEach((k) => set.add(k)));
+    const common = ["ProductName", "Brand", "Condition", "Price", "SKU", "URL", "Notes"];
     const rest = Array.from(set).filter((c) => !common.includes(c));
     return [...common.filter((c) => set.has(c)), ...rest];
   }, [rows]);
