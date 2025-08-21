@@ -1,5 +1,8 @@
 // app/api/upload/[sessionId]/route.js
 // Simple in-memory storage (OK for dev/local). For production, use S3 or a DB.
+// app/api/upload/[sessionId]/route.js
+import sharp from "sharp";
+
 export const dynamic = "force-dynamic";
 
 const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes TTL
@@ -30,17 +33,48 @@ export async function POST(req, { params }) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const mime = file.type || "application/octet-stream";
+    const buffer = Buffer.from(arrayBuffer);
+
+    // ---- IMAGE COMPRESSION (resize + format) ----
+    let compressedBuffer;
+    let mime;
+
+    if (file.type.includes("jpeg") || file.type.includes("jpg")) {
+      compressedBuffer = await sharp(buffer)
+        .resize({ width: 1200, withoutEnlargement: true }) // resize if larger
+        .jpeg({ quality: 80 }) // compress JPEG
+        .toBuffer();
+      mime = "image/jpeg";
+    } else if (file.type.includes("png")) {
+      compressedBuffer = await sharp(buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .png({ compressionLevel: 8 }) // compress PNG
+        .toBuffer();
+      mime = "image/png";
+    } else if (file.type.includes("webp")) {
+      compressedBuffer = await sharp(buffer)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+      mime = "image/webp";
+    } else {
+      // default passthrough (e.g., GIF)
+      compressedBuffer = buffer;
+      mime = file.type || "application/octet-stream";
+    }
 
     STORE.set(sessionId, {
-      buffer: Buffer.from(arrayBuffer),
+      buffer: compressedBuffer,
       mime,
       updatedAt: Date.now(),
     });
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      },
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: e?.message || "Upload failed" }), {
@@ -49,6 +83,7 @@ export async function POST(req, { params }) {
     });
   }
 }
+
 
 export async function GET(req, { params }) {
   try {
