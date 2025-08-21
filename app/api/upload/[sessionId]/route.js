@@ -1,10 +1,5 @@
 // app/api/upload/[sessionId]/route.js
 // Simple in-memory storage (OK for dev/local). For production, use S3 or a DB.
-
-import { ImagePool } from "@squoosh/lib";
-import os from "os";
-
-export const runtime = "nodejs"; 
 export const dynamic = "force-dynamic";
 
 const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes TTL
@@ -17,37 +12,6 @@ function pruneOld() {
       STORE.delete(key);
     }
   }
-}
-
-async function compressImage(buffer, mime) {
-  const imagePool = new ImagePool(os.cpus().length);
-  const image = imagePool.ingestImage(buffer);
-
-  await image.encode({
-    mozjpeg: { quality: 80 },
-    webp: { quality: 80 },
-    oxipng: {},
-  });
-
-  let resultBuffer;
-  let outMime = mime;
-
-  if (mime.includes("jpeg") || mime.includes("jpg")) {
-    resultBuffer = Buffer.from((await image.encodedWith.mozjpeg).binary);
-    outMime = "image/jpeg";
-  } else if (mime.includes("png")) {
-    resultBuffer = Buffer.from((await image.encodedWith.oxipng).binary);
-    outMime = "image/png";
-  } else if (mime.includes("webp")) {
-    resultBuffer = Buffer.from((await image.encodedWith.webp).binary);
-    outMime = "image/webp";
-  } else {
-    // default passthrough
-    resultBuffer = buffer;
-  }
-
-  await imagePool.close();
-  return { buffer: resultBuffer, mime: outMime };
 }
 
 export async function POST(req, { params }) {
@@ -66,23 +30,17 @@ export async function POST(req, { params }) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // compress with Squoosh
-    const { buffer: compressedBuffer, mime } = await compressImage(buffer, file.type);
+    const mime = file.type || "application/octet-stream";
 
     STORE.set(sessionId, {
-      buffer: compressedBuffer,
+      buffer: Buffer.from(arrayBuffer),
       mime,
       updatedAt: Date.now(),
     });
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      },
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: e?.message || "Upload failed" }), {
