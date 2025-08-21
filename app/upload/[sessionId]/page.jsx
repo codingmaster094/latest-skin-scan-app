@@ -1,13 +1,16 @@
-// app/upload/[sessionId]/page.jsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function MobileUploadPage({ params }) {
   const { sessionId } = params;
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // refs for two inputs
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -48,14 +51,42 @@ export default function MobileUploadPage({ params }) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
+        {/* Hidden inputs */}
         <input
           type="file"
           accept="image/*"
-          capture="environment" // opens camera on many phones
+          capture="environment"
+          ref={cameraInputRef}
           onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="block w-full"
+          className="hidden"
+        />
+        <input
+          type="file"
+          accept="image/*"
+          ref={galleryInputRef}
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          className="hidden"
         />
 
+        {/* Buttons to trigger inputs */}
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+          >
+            Take Photo
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
+            className="px-4 py-2 rounded-lg bg-green-600 text-white"
+          >
+            Upload from Gallery
+          </button>
+        </div>
+
+        {/* Submit upload */}
         <button
           disabled={busy || !file}
           className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
