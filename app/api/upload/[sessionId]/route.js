@@ -2,6 +2,15 @@
 // Simple in-memory storage (OK for dev/local). For production, use S3 or a DB.
 export const dynamic = "force-dynamic";
 
+// ✅ Increase body size limit (default is 1mb → now 10mb)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb", // you can change this to "20mb" if needed
+    },
+  },
+};
+
 const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes TTL
 const STORE = (globalThis.__qrUploadStore ||= new Map());
 
