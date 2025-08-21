@@ -1,10 +1,11 @@
 // app/api/upload/[sessionId]/route.js
 // Simple in-memory storage (OK for dev/local). For production, use S3 or a DB.
-// app/api/upload/[sessionId]/route.js
-import sharp from "sharp";
 
-export const dynamic = "force-dynamic";
+import { ImagePool } from "@squoosh/lib";
+import os from "os";
+
 export const runtime = "nodejs"; 
+export const dynamic = "force-dynamic";
 
 const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes TTL
 const STORE = (globalThis.__qrUploadStore ||= new Map());
@@ -16,6 +17,37 @@ function pruneOld() {
       STORE.delete(key);
     }
   }
+}
+
+async function compressImage(buffer, mime) {
+  const imagePool = new ImagePool(os.cpus().length);
+  const image = imagePool.ingestImage(buffer);
+
+  await image.encode({
+    mozjpeg: { quality: 80 },
+    webp: { quality: 80 },
+    oxipng: {},
+  });
+
+  let resultBuffer;
+  let outMime = mime;
+
+  if (mime.includes("jpeg") || mime.includes("jpg")) {
+    resultBuffer = Buffer.from((await image.encodedWith.mozjpeg).binary);
+    outMime = "image/jpeg";
+  } else if (mime.includes("png")) {
+    resultBuffer = Buffer.from((await image.encodedWith.oxipng).binary);
+    outMime = "image/png";
+  } else if (mime.includes("webp")) {
+    resultBuffer = Buffer.from((await image.encodedWith.webp).binary);
+    outMime = "image/webp";
+  } else {
+    // default passthrough
+    resultBuffer = buffer;
+  }
+
+  await imagePool.close();
+  return { buffer: resultBuffer, mime: outMime };
 }
 
 export async function POST(req, { params }) {
@@ -36,33 +68,8 @@ export async function POST(req, { params }) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // ---- IMAGE COMPRESSION (resize + format) ----
-    let compressedBuffer;
-    let mime;
-
-    if (file.type.includes("jpeg") || file.type.includes("jpg")) {
-      compressedBuffer = await sharp(buffer)
-        .resize({ width: 1200, withoutEnlargement: true }) // resize if larger
-        .jpeg({ quality: 80 }) // compress JPEG
-        .toBuffer();
-      mime = "image/jpeg";
-    } else if (file.type.includes("png")) {
-      compressedBuffer = await sharp(buffer)
-        .resize({ width: 1200, withoutEnlargement: true })
-        .png({ compressionLevel: 8 }) // compress PNG
-        .toBuffer();
-      mime = "image/png";
-    } else if (file.type.includes("webp")) {
-      compressedBuffer = await sharp(buffer)
-        .resize({ width: 1200, withoutEnlargement: true })
-        .webp({ quality: 80 })
-        .toBuffer();
-      mime = "image/webp";
-    } else {
-      // default passthrough (e.g., GIF)
-      compressedBuffer = buffer;
-      mime = file.type || "application/octet-stream";
-    }
+    // compress with Squoosh
+    const { buffer: compressedBuffer, mime } = await compressImage(buffer, file.type);
 
     STORE.set(sessionId, {
       buffer: compressedBuffer,
@@ -84,7 +91,6 @@ export async function POST(req, { params }) {
     });
   }
 }
-
 
 export async function GET(req, { params }) {
   try {
