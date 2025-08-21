@@ -4,6 +4,7 @@
 import sharp from "sharp";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs"; 
 
 const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes TTL
 const STORE = (globalThis.__qrUploadStore ||= new Map());
