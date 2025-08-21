@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@squoosh/lib": "^0.5.3",
     "next": "15.5.0",
     "qrcode.react": "^4.2.0",
     "react": "19.1.0",

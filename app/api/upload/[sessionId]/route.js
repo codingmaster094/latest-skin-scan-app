@@ -1,7 +1,7 @@
 // app/api/upload/[sessionId]/route.js
 // Simple in-memory storage (OK for dev/local). For production, use S3 or a DB.
 
-import { ImagePool } from "squoosh";
+import { ImagePool } from "@squoosh/lib";
 import os from "os";
 
 export const runtime = "nodejs"; 
@@ -100,12 +100,14 @@ export async function GET(req, { params }) {
     const item = STORE.get(sessionId);
 
     if (!item) {
+      // Not ready yet
       return new Response(JSON.stringify({ ready: false }), {
         status: 404,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       });
     }
 
+    // Return the image as binary
     return new Response(item.buffer, {
       status: 200,
       headers: {
