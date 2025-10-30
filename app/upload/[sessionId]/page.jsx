@@ -1,15 +1,27 @@
 "use client";
-
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function MobileUploadPage({ params }) {
   const { sessionId } = params;
   const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!file) {
+      setPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+
+    // Clean up the URL object to prevent memory leaks
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -50,7 +62,6 @@ export default function MobileUploadPage({ params }) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
-        {/* Hidden inputs */}
         <input
           type="file"
           accept="image/*"
@@ -67,18 +78,17 @@ export default function MobileUploadPage({ params }) {
           className="hidden"
         />
 
-        {/* Preview the uploaded or captured photo in a round frame */}
-        {file && (
+        {/* Round preview */}
+        {preview && (
           <div className="flex justify-center mb-4">
             <img
-              src={URL.createObjectURL(file)}
+              src={preview}
               alt="preview"
-              className="w-40 h-40 object-cover rounded-full border-4 border-gray-300"
+              className="w-40 h-40 rounded-full object-cover border-4 border-gray-300"
             />
           </div>
         )}
 
-        {/* Buttons to trigger inputs */}
         <div className="flex gap-4">
           <button
             type="button"
@@ -96,7 +106,6 @@ export default function MobileUploadPage({ params }) {
           </button>
         </div>
 
-        {/* Submit upload */}
         <button
           disabled={busy || !file}
           className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
