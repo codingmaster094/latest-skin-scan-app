@@ -207,7 +207,7 @@ export default function MobileUploadPage({ params }) {
             />
             <div
               aria-hidden
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
             >
               <div className="w-full h-full rounded-full border-4 border-white" />
               <div
