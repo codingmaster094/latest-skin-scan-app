@@ -154,8 +154,7 @@ export default function MobileUploadPage({ params }) {
               Camera inactive
             </div>
           )}
-
-  {!streaming && (
+  
           <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
             <video
               ref={videoRef}
@@ -227,7 +226,6 @@ export default function MobileUploadPage({ params }) {
               `}</style>
             </div>
           </div>
-           )}
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
