@@ -8,9 +8,16 @@ export default function MobileUploadPage({ params }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
+  // camera state
+  const [streaming, setStreaming] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
+  // Create preview URL when file changes
   useEffect(() => {
     if (!file) {
       setPreview(null);
@@ -19,9 +26,106 @@ export default function MobileUploadPage({ params }) {
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
 
-    // Clean up the URL object to prevent memory leaks
-    return () => URL.revokeObjectURL(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [file]);
+
+  // Start camera (prefer environment/back camera)
+  async function startCamera() {
+    if (streaming) return;
+    try {
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setStreaming(true);
+    } catch (err) {
+      console.error("Camera start error", err);
+      setMsg("Could not start camera — permission denied or no camera available.");
+    }
+  }
+
+  // Stop camera
+  function stopCamera() {
+    if (!cameraStreamRef.current) return;
+    cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+    cameraStreamRef.current = null;
+    setStreaming(false);
+  }
+
+  // Capture photo: crop center square, mask to circle, convert to File
+  async function capturePhoto() {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) {
+      setMsg("Camera not ready.");
+      return;
+    }
+
+    // choose size - square from center of video
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const size = Math.min(vw, vh); // square size
+    const sx = (vw - size) / 2;
+    const sy = (vh - size) / 2;
+
+    const canvas = canvasRef.current;
+    // set canvas to square size (you can change output pixel size here)
+    const outputSize = 800; // final image size (px)
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    const ctx = canvas.getContext("2d");
+
+    // draw center-cropped image scaled to canvas
+    ctx.clearRect(0, 0, outputSize, outputSize);
+
+    // draw the image
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, outputSize, outputSize);
+
+    // create circular mask
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.beginPath();
+    ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // convert to blob then to File
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    if (!blob) {
+      setMsg("Failed to capture image.");
+      return;
+    }
+    const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
+
+    // set file (this will trigger your preview effect)
+    setFile(capturedFile);
+
+    // stop camera automatically after capture if you prefer
+    stopCamera();
+
+    setMsg("Photo captured — ready to upload.");
+  }
+
+  // handle gallery fallback input
+  function handleGalleryFile(e) {
+    const selected = e.target.files?.[0] || null;
+    if (selected) {
+      // Optionally convert rectangular gallery image into circular masked file as well
+      // For simplicity here we set as-is and rely on CSS preview mask; if you need server circular crop,
+      // you can load it into canvas and mask same as capturePhoto (ask if you want that).
+      setFile(selected);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -54,6 +158,11 @@ export default function MobileUploadPage({ params }) {
     }
   }
 
+  // cleanup on unmount
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
   return (
     <main className="p-6 max-w-lg mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Upload your photo</h1>
@@ -62,6 +171,7 @@ export default function MobileUploadPage({ params }) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
+        {/* Hidden file inputs (gallery fallback) */}
         <input
           type="file"
           accept="image/*"
@@ -74,13 +184,90 @@ export default function MobileUploadPage({ params }) {
           type="file"
           accept="image/*"
           ref={galleryInputRef}
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
+          onChange={handleGalleryFile}
           className="hidden"
         />
 
+        {/* Live camera UI */}
+        <div className="relative w-full flex justify-center">
+          {!streaming && (
+            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm text-gray-500">
+              Camera inactive
+            </div>
+          )}
+
+          <div className="relative">
+            <video
+              ref={videoRef}
+              className={`w-72 h-72 rounded-full object-cover ${streaming ? "" : "hidden"}`}
+              playsInline
+              muted
+              autoPlay
+            />
+            {/* Circular overlay frame */}
+            <div
+              aria-hidden
+              className="absolute inset-0 w-72 h-72 rounded-full pointer-events-none flex items-center justify-center"
+            >
+              {/* Outer semi-transparent dark to emphasize circle: using pseudo overlay via sibling */}
+              <div className="w-full h-full rounded-full border-4 border-white shadow-lg"></div>
+            </div>
+            {/* A subtle full-screen overlay to darken outside circle */}
+            <div className="absolute inset-0 w-72 h-72 rounded-full pointer-events-none">
+              {/* We create outside dark by using box-shadow-like pseudo effect via CSS - simplified here */}
+              {/* (This is optional; you'd typically use complex CSS with ::before/::after for the donut) */}
+            </div>
+          </div>
+        </div>
+
+        {/* Hidden canvas used for capture */}
+        <canvas ref={canvasRef} className="hidden" />
+
+        {/* Buttons */}
+        <div className="flex gap-3 justify-center">
+          {!streaming ? (
+            <button
+              type="button"
+              onClick={startCamera}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+            >
+              Open Camera
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={capturePhoto}
+              className="px-4 py-2 rounded-lg bg-yellow-500 text-black"
+            >
+              Capture (inside circle)
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              // open gallery fallback
+              galleryInputRef.current?.click();
+            }}
+            className="px-4 py-2 rounded-lg bg-green-600 text-white"
+          >
+            Upload from Gallery
+          </button>
+
+          {streaming && (
+            <button
+              type="button"
+              onClick={stopCamera}
+              className="px-4 py-2 rounded-lg bg-red-600 text-white"
+            >
+              Close Camera
+            </button>
+          )}
+        </div>
+
         {/* Round preview */}
         {preview && (
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-2 mt-3">
             <img
               src={preview}
               alt="preview"
@@ -89,31 +276,16 @@ export default function MobileUploadPage({ params }) {
           </div>
         )}
 
-        <div className="flex gap-4">
+        <div className="flex justify-center">
           <button
-            type="button"
-            onClick={() => cameraInputRef.current?.click()}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white"
+            disabled={busy || !file}
+            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
           >
-            Take Photo
-          </button>
-          <button
-            type="button"
-            onClick={() => galleryInputRef.current?.click()}
-            className="px-4 py-2 rounded-lg bg-green-600 text-white"
-          >
-            Upload from Gallery
+            {busy ? "Uploading..." : "Upload"}
           </button>
         </div>
 
-        <button
-          disabled={busy || !file}
-          className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
-        >
-          {busy ? "Uploading..." : "Upload"}
-        </button>
-
-        {msg && <div className="text-sm mt-1">{msg}</div>}
+        {msg && <div className="text-sm mt-1 text-center">{msg}</div>}
       </form>
 
       <p className="text-xs text-gray-500 mt-4">
