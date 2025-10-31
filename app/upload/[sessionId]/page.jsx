@@ -150,11 +150,7 @@ export default function MobileUploadPage({ params }) {
 
         <div className="relative w-full flex justify-center">
           {!streaming && (
-            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm z-10 text-gray-500 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              Camera inactive
-            </div>
-          )}
-  
+            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm z-10 text-gray-500 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">  
           <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
             <video
               ref={videoRef}
@@ -226,6 +222,9 @@ export default function MobileUploadPage({ params }) {
               `}</style>
             </div>
           </div>
+            </div>
+          )}
+  
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
