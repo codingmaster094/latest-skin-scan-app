@@ -49,9 +49,7 @@ export default function MobileUploadPage({ params }) {
       setMsg("");
     } catch (err) {
       console.error("Camera start error", err);
-      setMsg(
-        "Could not start camera — permission denied or no front camera available."
-      );
+      setMsg("Could not start camera — permission denied or no front camera available.");
     }
   }
 
@@ -98,16 +96,12 @@ export default function MobileUploadPage({ params }) {
     ctx.closePath();
     ctx.fill();
 
-    const blob = await new Promise((res) =>
-      canvas.toBlob(res, "image/jpeg", 0.92)
-    );
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
     if (!blob) {
       setMsg("Failed to capture image.");
       return;
     }
-    const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, {
-      type: "image/jpeg",
-    });
+    const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
 
     setFile(capturedFile);
     stopCamera();
@@ -130,10 +124,7 @@ export default function MobileUploadPage({ params }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`/api/upload/${sessionId}`, {
-        method: "POST",
-        body: fd,
-      });
+      const res = await fetch(`/api/upload/${sessionId}`, { method: "POST", body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || `Upload failed (${res.status})`);
@@ -151,197 +142,153 @@ export default function MobileUploadPage({ params }) {
   return (
     <main className="p-6 max-w-lg mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Upload your photo</h1>
-      <p className="text-sm text-gray-600 mb-4">
-        Session: <span className="font-mono">{sessionId}</span>
-      </p>
+      <p className="text-sm text-gray-600 mb-4">Session: <span className="font-mono">{sessionId}</span></p>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 border rounded-2xl p-4"
-      >
-        <input
-          type="file"
-          accept="image/*"
-          capture="user"
-          ref={cameraInputRef}
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="hidden"
-        />
-        <input
-          type="file"
-          accept="image/*"
-          ref={galleryInputRef}
-          onChange={handleGalleryFile}
-          className="hidden"
-        />
+      <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
+        <input type="file" accept="image/*" capture="user" ref={cameraInputRef} onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
+        <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleGalleryFile} className="hidden" />
 
         <div className="relative w-full flex justify-center">
+          {/* {!streaming && (
+            <div className="">
+              Camera inactive
+            </div>
+          )} */}
+  {!streaming && (
           <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
-            {streaming && (
-              <>
-                <video
-                  ref={videoRef}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  playsInline
-                  muted
-                  autoPlay
-                  style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
-                />
-                <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
-                  <svg
-                    viewBox="0 0 100 100"
-                    width="100%"
-                    height="100%"
-                    style={{ position: "absolute", inset: 0 }}
-                    className="w-full h-full"
-                  >
-                    <defs>
-                      <mask id="overlayMask">
-                        <rect width="100" height="100" fill="white" />
-                        <circle cx="50" cy="50" r="48" fill="black" />
-                      </mask>
-                      <filter
-                        id="glow"
-                        x="-50%"
-                        y="-50%"
-                        width="200%"
-                        height="200%"
-                      >
-                        <feGaussianBlur stdDeviation="2.5" result="blur" />
-                        <feMerge>
-                          <feMergeNode in="blur" />
-                          <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                      </filter>
-                    </defs>
-                    <rect
-                      width="100"
-                      height="100"
-                      fill="rgba(0,0,0,0.65)"
-                      mask="url(#overlayMask)"
-                      className="transition-all"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="46"
-                      stroke="#22d3ee"
-                      strokeWidth="2"
-                      fill="none"
-                      filter="url(#glow)"
-                    />
-                    <g stroke="#fff" strokeWidth="0.5" opacity="0.35">
-                      <line x1="50" y1="12" x2="50" y2="88" />
-                      <line x1="12" y1="50" x2="88" y2="50" />
-                      <ellipse cx="50" cy="50" rx="36" ry="44" fill="none" />
-                    </g>
-                    <g stroke="#fff" strokeWidth="2">
-                      <polyline points="19,40 19,19 40,19" />
-                      <polyline points="81,40 81,19 60,19" />
-                      <polyline points="19,60 19,81 40,81" />
-                      <polyline points="81,60 81,81 60,81" />
-                    </g>
-                    {[...Array(6)].map((_, i) => {
-                      const angle = (Math.PI * 2 * i) / 6;
-                      const x = 50 + 42 * Math.cos(angle);
-                      const y = 50 + 42 * Math.sin(angle);
-                      return (
-                        <circle
-                          key={i}
-                          cx={x}
-                          cy={y}
-                          r="2"
-                          fill="#22d3ee"
-                          className="pulse"
-                          style={{ animationDelay: `${i * 0.15}s` }}
-                        />
-                      );
-                    })}
-                  </svg>
-                  <style>
-                    {`
-                      .pulse {
-                        transform-origin: center;
-                        animation: pulseDot 1.6s infinite;
-                      }
-                      @keyframes pulseDot {
-                        0% { r: 2; opacity: 1; }
-                        50% { r: 3.5; opacity: 0.65; }
-                        100% { r: 2; opacity: 1; }
-                      }
-                    `}
-                  </style>
-                </div>
-              </>
-            )}
+            {/* video fills circle */}
+            <video
+              ref={videoRef}
+              className={`absolute inset-0 w-full h-full object-cover ${streaming ? "" : "hidden"}`}
+              playsInline muted autoPlay
+              style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
+            />
+
+            {/* overlay: corner brackets + mesh + dotted inner ring + pulsing points */}
+            <div className="absolute inset-0 pointer-events-none z-20">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className="w-full h-full">
+                <defs>
+                  <mask id="hole">
+                    <rect width="100" height="100" fill="black" />
+                    <circle cx="50" cy="50" r="46" fill="white" />
+                  </mask>
+
+                  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="1.6" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
+
+                {/* darken outside ringing (keeps circular mask) */}
+                <rect width="100" height="100" fill="rgba(0,0,0,0.62)" mask="url(#hole)" />
+
+                {/* dashed inner spotlight circle */}
+                <circle cx="50" cy="46" r="30" fill="none" stroke="rgba(255,255,255,0.85)" strokeDasharray="1.5 2.5" strokeWidth="0.8" transform="" />
+
+                {/* corner brackets */}
+                <g stroke="rgba(0,200,255,0.95)" strokeWidth="1.6" fill="none">
+                  {/* top-left */}
+                  <path d="M12 20 L12 10 L22 10" strokeLinecap="round" />
+                  {/* top-right */}
+                  <path d="M88 20 L88 10 L78 10" strokeLinecap="round" />
+                  {/* bottom-left */}
+                  <path d="M12 80 L12 90 L22 90" strokeLinecap="round" />
+                  {/* bottom-right */}
+                  <path d="M88 80 L88 90 L78 90" strokeLinecap="round" />
+                </g>
+
+                {/* stylized facial mesh: points + connecting lines (static guide) */}
+                <g stroke="rgba(0,200,255,0.85)" strokeWidth="0.7" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95">
+                  {/* jaw / chin */}
+                  <polyline points="38,58 42,66 50,70 58,66 62,58" />
+                  {/* face outline up to temples */}
+                  <polyline points="34,46 36,52 38,58" />
+                  <polyline points="66,46 64,52 62,58" />
+                  {/* nose vertical */}
+                  <polyline points="50,46 50,54" />
+                  {/* nose base */}
+                  <polyline points="46,54 50,56 54,54" />
+                  {/* eyes connect */}
+                  <polyline points="40,46 46,44 50,44 54,44 60,46" />
+                  {/* forehead tri */
+                  } 
+                  <polyline points="44,38 50,34 56,38" />
+                  {/* triangles to form mesh */}
+                  <polyline points="44,38 46,44 50,44 54,44 56,38" strokeDasharray="1.2 1.2" opacity="0.8" />
+                </g>
+
+                {/* keypoints (circles) with small pulsing animation using CSS */}
+                <g id="keypoints" fill="rgba(0,200,255,0.95)" stroke="white" strokeWidth="0.2">
+                  <circle className="kp" cx="44" cy="38" r="0.9" />
+                  <circle className="kp" cx="50" cy="34" r="0.9" />
+                  <circle className="kp" cx="56" cy="38" r="0.9" />
+                  <circle className="kp" cx="46" cy="44" r="0.9" />
+                  <circle className="kp" cx="54" cy="44" r="0.9" />
+                  <circle className="kp" cx="50" cy="46" r="0.95" />
+                  <circle className="kp" cx="50" cy="56" r="1.0" />
+                  <circle className="kp" cx="42" cy="66" r="0.9" />
+                  <circle className="kp" cx="58" cy="66" r="0.9" />
+                </g>
+
+                {/* subtle center crosshair */}
+                <g stroke="rgba(255,255,255,0.06)" strokeWidth="0.6">
+                  <line x1="40" y1="50" x2="60" y2="50" />
+                </g>
+              </svg>
+
+              {/* inline styles for pulsing keypoints */}
+              <style>{`
+                /* scale up/down the small circles to create pulse */
+                .kp {
+                  transform-origin: center;
+                  animation: kpPulse 1.6s infinite ease-in-out;
+                }
+                .kp:nth-child(2) { animation-delay: 0.05s; }
+                .kp:nth-child(3) { animation-delay: 0.1s; }
+                .kp:nth-child(4) { animation-delay: 0.15s; }
+                .kp:nth-child(5) { animation-delay: 0.2s; }
+                .kp:nth-child(6) { animation-delay: 0.25s; }
+                @keyframes kpPulse {
+                  0% { transform: scale(1); opacity: 1; }
+                  50% { transform: scale(1.6); opacity: 0.6; }
+                  100% { transform: scale(1); opacity: 1; }
+                }
+              `}</style>
+            </div>
           </div>
+           )}
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
 
-        <div className="flex gap-3 justify-center mt-4">
+        <div className="flex gap-3 justify-center">
           {!streaming ? (
-            <button
-              type="button"
-              onClick={startCamera}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white"
-            >
-              Open Camera
-            </button>
+            <button type="button" onClick={startCamera} className="px-4 py-2 rounded-lg bg-blue-600 text-white">Open Camera</button>
           ) : (
-            <button
-              type="button"
-              onClick={capturePhoto}
-              className="px-4 py-2 rounded-lg bg-yellow-500 text-black"
-            >
-              Capture (inside circle)
-            </button>
+            <button type="button" onClick={capturePhoto} className="px-4 py-2 rounded-lg bg-yellow-500 text-black">Capture (inside circle)</button>
           )}
 
-          <button
-            type="button"
-            onClick={() => galleryInputRef.current?.click()}
-            className="px-4 py-2 rounded-lg bg-green-600 text-white"
-          >
-            Upload from Gallery
-          </button>
+          <button type="button" onClick={() => galleryInputRef.current?.click()} className="px-4 py-2 rounded-lg bg-green-600 text-white">Upload from Gallery</button>
 
           {streaming && (
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="px-4 py-2 rounded-lg bg-red-600 text-white"
-            >
-              Close Camera
-            </button>
+            <button type="button" onClick={stopCamera} className="px-4 py-2 rounded-lg bg-red-600 text-white">Close Camera</button>
           )}
         </div>
 
         {preview && (
           <div className="flex justify-center mb-2 mt-3">
-            <img
-              src={preview}
-              alt="preview"
-              className="w-40 h-40 rounded-full object-cover border-4 border-gray-300"
-            />
+            <img src={preview} alt="preview" className="w-40 h-40 rounded-full object-cover border-4 border-gray-300" />
           </div>
         )}
 
         <div className="flex justify-center">
-          <button
-            disabled={busy || !file}
-            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
-          >
-            {busy ? "Uploading..." : "Upload"}
-          </button>
+          <button disabled={busy || !file} className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50">{busy ? "Uploading..." : "Upload"}</button>
         </div>
 
         {msg && <div className="text-sm mt-1 text-center">{msg}</div>}
       </form>
 
-      <p className="text-xs text-gray-500 mt-4">
-        Your photo is stored temporarily for this session only.
-      </p>
+      <p className="text-xs text-gray-500 mt-4">Your photo is stored temporarily for this session only.</p>
     </main>
   );
 }
