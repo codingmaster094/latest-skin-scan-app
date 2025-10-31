@@ -176,7 +176,7 @@ export default function MobileUploadPage({ params }) {
             </div>
           )}
 
-          <div className="relative">
+          <div className="">
             <video
               ref={videoRef}
               className={`w-72 h-72 rounded-full object-cover ${
