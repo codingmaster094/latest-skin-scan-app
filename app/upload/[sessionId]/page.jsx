@@ -10,76 +10,72 @@ export default function MobileUploadPage({ params }) {
 
   // camera state
   const [streaming, setStreaming] = useState(false);
-  const [facingMode, setFacingMode] = useState("user"); // "user" = front camera
+  const [facingMode, setFacingMode] = useState("user"); // front camera by default
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
-
   const galleryInputRef = useRef(null);
 
   // Create preview URL when file changes
   useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return;
-    }
+    if (!file) return setPreview(null);
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
+    return () => URL.revokeObjectURL(objectUrl);
   }, [file]);
 
-  // Start camera (prefer front camera by default)
+  // Start camera with proper facing mode
   async function startCamera() {
-    if (streaming) return;
     try {
+      stopCamera(); // clear any existing
       const constraints = {
+        audio: false,
         video: {
-          facingMode: { ideal: facingMode }, // "user" or "environment"
           width: { ideal: 1280 },
           height: { ideal: 720 },
+          facingMode: facingMode === "user" ? "user" : { exact: "environment" },
         },
-        audio: false,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       cameraStreamRef.current = stream;
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+
       setStreaming(true);
+      setMsg("");
     } catch (err) {
-      console.error("Camera start error", err);
-      setMsg("Could not start camera — permission denied or no camera available.");
+      console.error("Camera start error:", err);
+      setMsg(
+        "⚠️ Could not start camera. Make sure you’ve granted permission and are using HTTPS or localhost."
+      );
     }
   }
 
-  // Stop camera
   function stopCamera() {
-    if (!cameraStreamRef.current) return;
-    cameraStreamRef.current.getTracks().forEach((t) => t.stop());
-    cameraStreamRef.current = null;
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((t) => t.stop());
+      cameraStreamRef.current = null;
+    }
     setStreaming(false);
   }
 
-  // Flip front ↔ back camera
   async function flipCamera() {
     stopCamera();
     setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   }
 
-  // Auto-restart when facingMode changes
   useEffect(() => {
     if (streaming) startCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
 
-  // Capture photo with circular crop
   async function capturePhoto() {
     const video = videoRef.current;
     if (!video || video.readyState < 2) {
-      setMsg("Camera not ready.");
+      setMsg("Camera not ready yet.");
       return;
     }
 
@@ -95,40 +91,38 @@ export default function MobileUploadPage({ params }) {
     canvas.height = outputSize;
     const ctx = canvas.getContext("2d");
 
-    ctx.clearRect(0, 0, outputSize, outputSize);
     ctx.drawImage(video, sx, sy, size, size, 0, 0, outputSize, outputSize);
 
-    // circular mask
+    // Circular mask
     ctx.globalCompositeOperation = "destination-in";
     ctx.beginPath();
     ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
     ctx.closePath();
     ctx.fill();
 
-    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
-    if (!blob) {
-      setMsg("Failed to capture image.");
-      return;
-    }
-    const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
+    const blob = await new Promise((res) =>
+      canvas.toBlob(res, "image/jpeg", 0.9)
+    );
+
+    if (!blob) return setMsg("Capture failed.");
+
+    const capturedFile = new File([blob], `photo-${Date.now()}.jpg`, {
+      type: "image/jpeg",
+    });
 
     setFile(capturedFile);
     stopCamera();
-    setMsg("Photo captured — ready to upload.");
+    setMsg("✅ Photo captured!");
   }
 
-  // handle gallery file
   function handleGalleryFile(e) {
-    const selected = e.target.files?.[0] || null;
+    const selected = e.target.files?.[0];
     if (selected) setFile(selected);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!file) {
-      setMsg("Please choose a photo first.");
-      return;
-    }
+    if (!file) return setMsg("Please choose or capture a photo first.");
     setBusy(true);
     setMsg("");
 
@@ -140,72 +134,62 @@ export default function MobileUploadPage({ params }) {
         method: "POST",
         body: fd,
       });
+      if (!res.ok) throw new Error("Upload failed");
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `Upload failed (${res.status})`);
-      }
-
-      setMsg("Uploaded! You can go back to your desktop now.");
+      setMsg("✅ Uploaded successfully!");
     } catch (err) {
-      setMsg(err.message || "Something went wrong.");
+      setMsg(err.message);
     } finally {
       setBusy(false);
     }
   }
 
-  // cleanup on unmount
-  useEffect(() => {
-    return () => stopCamera();
-  }, []);
+  useEffect(() => () => stopCamera(), []);
 
   return (
     <main className="p-6 max-w-lg mx-auto text-center">
-      <h1 className="text-2xl font-semibold mb-4">Upload your photo</h1>
-      <p className="text-sm text-gray-600 mb-4">
-        Session: <span className="font-mono">{sessionId}</span>
-      </p>
+      <h1 className="text-2xl font-semibold mb-4">Upload Your Photo</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
-        {/* Hidden gallery input */}
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 border rounded-2xl p-4 shadow"
+      >
+        {/* Hidden input */}
         <input
+          ref={galleryInputRef}
           type="file"
           accept="image/*"
-          ref={galleryInputRef}
           onChange={handleGalleryFile}
           className="hidden"
         />
 
         {/* Camera preview */}
-        <div className="relative w-full flex justify-center">
+        <div className="relative flex justify-center">
           {!streaming && !preview && (
-            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm text-gray-500">
-              Camera inactive
+            <div className="w-72 h-72 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed text-gray-500">
+              Camera not active
             </div>
           )}
 
-          <div className="relative">
-            {streaming && (
-              <>
-                <video
-                  ref={videoRef}
-                  className="w-72 h-72 rounded-full object-cover"
-                  playsInline
-                  muted
-                  autoPlay
-                />
-                <div className="absolute inset-0 w-72 h-72 rounded-full border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] pointer-events-none"></div>
-              </>
-            )}
-          </div>
+          {streaming && (
+            <div className="relative">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-72 h-72 rounded-full object-cover"
+              />
+              <div className="absolute inset-0 w-72 h-72 rounded-full border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] pointer-events-none"></div>
+            </div>
+          )}
         </div>
 
-        {/* Hidden canvas */}
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Buttons */}
-        <div className="flex gap-3 justify-center flex-wrap">
-          {!streaming ? (
+        {/* Controls */}
+        <div className="flex flex-wrap gap-3 justify-center">
+          {!streaming && (
             <button
               type="button"
               onClick={startCamera}
@@ -213,24 +197,32 @@ export default function MobileUploadPage({ params }) {
             >
               Open Camera
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={capturePhoto}
-              className="px-4 py-2 rounded-lg bg-yellow-500 text-black"
-            >
-              Capture
-            </button>
           )}
 
           {streaming && (
-            <button
-              type="button"
-              onClick={flipCamera}
-              className="px-4 py-2 rounded-lg bg-purple-600 text-white"
-            >
-              Flip Camera
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="px-4 py-2 rounded-lg bg-yellow-500 text-black"
+              >
+                Capture
+              </button>
+              <button
+                type="button"
+                onClick={flipCamera}
+                className="px-4 py-2 rounded-lg bg-purple-600 text-white"
+              >
+                Flip
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white"
+              >
+                Close
+              </button>
+            </>
           )}
 
           <button
@@ -238,23 +230,13 @@ export default function MobileUploadPage({ params }) {
             onClick={() => galleryInputRef.current?.click()}
             className="px-4 py-2 rounded-lg bg-green-600 text-white"
           >
-            Upload from Gallery
+            Gallery
           </button>
-
-          {streaming && (
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="px-4 py-2 rounded-lg bg-red-600 text-white"
-            >
-              Close Camera
-            </button>
-          )}
         </div>
 
-        {/* Round preview */}
+        {/* Preview */}
         {preview && (
-          <div className="flex justify-center mb-2 mt-3">
+          <div className="flex justify-center mt-3">
             <img
               src={preview}
               alt="preview"
@@ -263,20 +245,18 @@ export default function MobileUploadPage({ params }) {
           </div>
         )}
 
-        <div className="flex justify-center">
-          <button
-            disabled={busy || !file}
-            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
-          >
-            {busy ? "Uploading..." : "Upload"}
-          </button>
-        </div>
+        <button
+          disabled={busy || !file}
+          className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
+        >
+          {busy ? "Uploading..." : "Upload"}
+        </button>
 
         {msg && <div className="text-sm mt-1 text-center">{msg}</div>}
       </form>
 
       <p className="text-xs text-gray-500 mt-4">
-        Your photo is stored temporarily for this session only.
+        Works best on HTTPS or localhost. Default camera: Front
       </p>
     </main>
   );
