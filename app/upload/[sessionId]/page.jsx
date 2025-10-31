@@ -8,9 +8,9 @@ export default function MobileUploadPage({ params }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // camera state
+  // camera state (unchanged)
   const [streaming, setStreaming] = useState(false);
-  const frontCamera = true;
+  const frontCamera = true; // unchanged
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
@@ -32,11 +32,7 @@ export default function MobileUploadPage({ params }) {
     if (streaming) return;
     try {
       const constraints = {
-        video: {
-          facingMode: { ideal: "user" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
+        video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -79,7 +75,6 @@ export default function MobileUploadPage({ params }) {
     const ctx = canvas.getContext("2d");
 
     ctx.clearRect(0, 0, outputSize, outputSize);
-
     if (frontCamera) {
       ctx.save();
       ctx.translate(outputSize, 0);
@@ -90,6 +85,7 @@ export default function MobileUploadPage({ params }) {
       ctx.drawImage(video, sx, sy, size, size, 0, 0, outputSize, outputSize);
     }
 
+    // circular mask
     ctx.globalCompositeOperation = "destination-in";
     ctx.beginPath();
     ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
@@ -104,7 +100,7 @@ export default function MobileUploadPage({ params }) {
     const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
 
     setFile(capturedFile);
-    stopCamera();
+    // stopCamera(); // keep commented if you want camera to keep running after capture
     setMsg("Photo captured — ready to upload.");
   }
 
@@ -144,116 +140,73 @@ export default function MobileUploadPage({ params }) {
       <h1 className="text-2xl font-semibold mb-4">Upload your photo</h1>
       <p className="text-sm text-gray-600 mb-4">Session: <span className="font-mono">{sessionId}</span></p>
 
-      <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
+      <form onSubmit={handleSubmit} className="space-y-6 border rounded-2xl p-6 bg-white shadow-sm">
+        {/* Hidden file inputs unchanged */}
         <input type="file" accept="image/*" capture="user" ref={cameraInputRef} onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
         <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleGalleryFile} className="hidden" />
 
-        <div className="relative w-full flex justify-center">
-          {!streaming && (
-            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm z-10 text-gray-500 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">  
-          <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
+        {/* Camera card area */}
+        <div className="flex flex-col items-center">
+          {/* Circular preview wrapper */}
+          <div className="relative w-72 h-72 rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
+            {/* Video fills circle */}
             <video
               ref={videoRef}
               className={`absolute inset-0 w-full h-full object-cover ${streaming ? "" : "hidden"}`}
-              playsInline muted autoPlay
+              playsInline
+              muted
+              autoPlay
               style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
             />
-            <div className="absolute inset-0 pointer-events-none z-20">
-              <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className="w-full h-full">
-                <defs>
-                  <mask id="hole">
-                    <rect width="100" height="100" fill="black" />
-                    <circle cx="50" cy="50" r="46" fill="white" />
-                  </mask>
 
-                  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="1.6" result="blur" />
-                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                </defs>
-                <rect width="100" height="100" fill="rgba(0,0,0,0.62)" mask="url(#hole)" />
-                <circle cx="50" cy="46" r="30" fill="none" stroke="rgba(255,255,255,0.85)" strokeDasharray="1.5 2.5" strokeWidth="0.8" transform="" />
-                <g stroke="rgba(0,200,255,0.95)" strokeWidth="1.6" fill="none">
-                  <path d="M12 20 L12 10 L22 10" strokeLinecap="round" />
-                  <path d="M88 20 L88 10 L78 10" strokeLinecap="round" />
-                  <path d="M12 80 L12 90 L22 90" strokeLinecap="round" />
-                  <path d="M88 80 L88 90 L78 90" strokeLinecap="round" />
-                </g>
-                <g stroke="rgba(0,200,255,0.85)" strokeWidth="0.7" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity="0.95">
-                  <polyline points="38,58 42,66 50,70 58,66 62,58" />
-                  <polyline points="34,46 36,52 38,58" />
-                  <polyline points="66,46 64,52 62,58" />
-                  <polyline points="50,46 50,54" />
-                  <polyline points="46,54 50,56 54,54" />
-                  <polyline points="40,46 46,44 50,44 54,44 60,46" /> 
-                  <polyline points="44,38 50,34 56,38" />
-                  <polyline points="44,38 46,44 50,44 54,44 56,38" strokeDasharray="1.2 1.2" opacity="0.8" />
-                </g>
-                <g id="keypoints" fill="rgba(0,200,255,0.95)" stroke="white" strokeWidth="0.2">
-                  <circle className="kp" cx="44" cy="38" r="0.9" />
-                  <circle className="kp" cx="50" cy="34" r="0.9" />
-                  <circle className="kp" cx="56" cy="38" r="0.9" />
-                  <circle className="kp" cx="46" cy="44" r="0.9" />
-                  <circle className="kp" cx="54" cy="44" r="0.9" />
-                  <circle className="kp" cx="50" cy="46" r="0.95" />
-                  <circle className="kp" cx="50" cy="56" r="1.0" />
-                  <circle className="kp" cx="42" cy="66" r="0.9" />
-                  <circle className="kp" cx="58" cy="66" r="0.9" />
-                </g>
-                <g stroke="rgba(255,255,255,0.06)" strokeWidth="0.6">
-                  <line x1="40" y1="50" x2="60" y2="50" />
-                </g>
-              </svg>
-              <style>{`
-                .kp {
-                  transform-origin: center;
-                  animation: kpPulse 1.6s infinite ease-in-out;
-                }
-                .kp:nth-child(2) { animation-delay: 0.05s; }
-                .kp:nth-child(3) { animation-delay: 0.1s; }
-                .kp:nth-child(4) { animation-delay: 0.15s; }
-                .kp:nth-child(5) { animation-delay: 0.2s; }
-                .kp:nth-child(6) { animation-delay: 0.25s; }
-                @keyframes kpPulse {
-                  0% { transform: scale(1); opacity: 1; }
-                  50% { transform: scale(1.6); opacity: 0.6; }
-                  100% { transform: scale(1); opacity: 1; }
-                }
-              `}</style>
+            {/* Inactive placeholder (dashed circle) */}
+            {!streaming && (
+              <div className="flex items-center justify-center w-full h-full">
+                <div className="w-64 h-64 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-400 text-gray-500">
+                  Camera inactive
+                </div>
+              </div>
+            )}
+
+            {/* Dashed inner ring (always visible on top to match your previous screenshot) */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-64 h-64 rounded-full border-2 border-dashed border-gray-400 bg-transparent"></div>
             </div>
           </div>
-            </div>
-          )}
-  
+
+          {/* Buttons row */}
+          <div className="mt-5 flex gap-4">
+            {!streaming ? (
+              <button type="button" onClick={startCamera} className="px-4 py-2 rounded-md bg-blue-600 text-white shadow">
+                Open Camera
+              </button>
+            ) : (
+              <button type="button" onClick={capturePhoto} className="px-4 py-2 rounded-md bg-yellow-500 text-black shadow">
+                Capture (inside circle)
+              </button>
+            )}
+
+            <button type="button" onClick={() => galleryInputRef.current?.click()} className="px-4 py-2 rounded-md bg-green-600 text-white shadow">
+              Upload from Gallery
+            </button>
+          </div>
+
+          {/* Upload button below centered */}
+          <div className="mt-4">
+            <button disabled={busy || !file} className="px-4 py-2 rounded-md bg-gray-800 text-white disabled:opacity-50">
+              {busy ? "Uploading..." : "Upload"}
+            </button>
+          </div>
         </div>
 
-        <canvas ref={canvasRef} className="hidden" />
-
-        <div className="flex gap-3 justify-center">
-          {!streaming ? (
-            <button type="button" onClick={startCamera} className="px-4 py-2 rounded-lg bg-blue-600 text-white">Open Camera</button>
-          ) : (
-            <button type="button" onClick={capturePhoto} className="px-4 py-2 rounded-lg bg-yellow-500 text-black">Capture (inside circle)</button>
-          )}
-
-          <button type="button" onClick={() => galleryInputRef.current?.click()} className="px-4 py-2 rounded-lg bg-green-600 text-white">Upload from Gallery</button>
-
-          {streaming && (
-            <button type="button" onClick={stopCamera} className="px-4 py-2 rounded-lg bg-red-600 text-white">Close Camera</button>
-          )}
-        </div>
-
+        {/* preview thumbnail */}
         {preview && (
-          <div className="flex justify-center mb-2 mt-3">
+          <div className="flex justify-center">
             <img src={preview} alt="preview" className="w-40 h-40 rounded-full object-cover border-4 border-gray-300" />
           </div>
         )}
 
-        <div className="flex justify-center">
-          <button disabled={busy || !file} className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50">{busy ? "Uploading..." : "Upload"}</button>
-        </div>
-
-        {msg && <div className="text-sm mt-1 text-center">{msg}</div>}
+        {msg && <div className="text-sm text-center text-gray-700">{msg}</div>}
       </form>
 
       <p className="text-xs text-gray-500 mt-4">Your photo is stored temporarily for this session only.</p>
