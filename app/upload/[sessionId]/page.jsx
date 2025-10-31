@@ -199,11 +199,12 @@ export default function MobileUploadPage({ params }) {
             </div>
           )}
 
-          {/* wrapper with overflow-hidden to avoid stray shadows */}
-          <div className="relative w-72 h-72 rounded-full overflow-hidden">
+          {/* --- Improved wrapper: video fills circle and overlay scales responsively --- */}
+          <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
+            {/* fill the circle fully: absolute and cover ensures no misalignment on mobile */}
             <video
               ref={videoRef}
-              className={`w-full h-full object-cover ${
+              className={`absolute inset-0 w-full h-full object-cover ${
                 streaming ? "" : "hidden"
               }`}
               playsInline
@@ -212,33 +213,22 @@ export default function MobileUploadPage({ params }) {
               // mirror preview when front camera so it feels like a mirror
               style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
             />
-            {/* <div
-              aria-hidden
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            >
-             
-              <div
-                className="absolute rounded-full pointer-events-none left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
-                style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)" }}
-              />
-            </div> */}
-            {/* Parabolic / oval overlay (replace old overlay) */}
-            <div className="absolute inset-0 pointer-events-none">
+
+            {/* Parabolic / oval overlay (SVG). preserveAspectRatio="xMidYMid slice" makes sure the ellipse remains centered and fills properly */}
+            <div className="absolute inset-0 pointer-events-none z-20">
               <svg
                 viewBox="0 0 100 100"
-                preserveAspectRatio="none"
+                preserveAspectRatio="xMidYMid slice"
                 className="w-full h-full"
                 aria-hidden="true"
               >
                 <defs>
-                  {/* Mask: white = hole (visible), black = dark */}
                   <mask id="ovalMask">
                     <rect x="0" y="0" width="100" height="100" fill="black" />
-                    {/* Ellipse controls the "parabolic" / oval shape.
-            Move cy up (e.g., 40-45) so oval sits higher for the face. */}
-                    <ellipse cx="50" cy="42" rx="38" ry="34" fill="white" />
+                    {/* ellipse centered slightly higher for face fit */}
+                    <ellipse cx="50" cy="40" rx="38" ry="34" fill="white" />
                   </mask>
-                  {/* Slight feather for border glow (optional) */}
+
                   <filter
                     id="softGlow"
                     x="-50%"
@@ -254,7 +244,7 @@ export default function MobileUploadPage({ params }) {
                   </filter>
                 </defs>
 
-                {/* Darken outside using the mask */}
+                {/* darken outside using the mask */}
                 <rect
                   width="100"
                   height="100"
@@ -262,26 +252,26 @@ export default function MobileUploadPage({ params }) {
                   mask="url(#ovalMask)"
                 />
 
-                {/* Dashed border for oval (white) */}
+                {/* dashed oval border */}
                 <ellipse
                   cx="50"
-                  cy="42"
+                  cy="40"
                   rx="38"
                   ry="34"
                   fill="none"
-                  stroke="rgba(255,255,255,0.92)"
-                  strokeWidth="0.9"
+                  stroke="rgba(255,255,255,0.9)"
+                  strokeWidth="0.8"
                   strokeDasharray="2 3"
                   vectorEffect="non-scaling-stroke"
                   style={{ filter: "url(#softGlow)" }}
                 />
 
-                {/* Optional alignment guides: small horizontal line where eyes should be */}
+                {/* subtle horizontal guide */}
                 <line
                   x1="22"
                   x2="78"
-                  y1="42"
-                  y2="42"
+                  y1="40"
+                  y2="40"
                   stroke="rgba(255,255,255,0.06)"
                   strokeWidth="0.6"
                   strokeLinecap="round"
