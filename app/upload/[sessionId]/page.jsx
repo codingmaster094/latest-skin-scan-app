@@ -189,7 +189,7 @@ export default function MobileUploadPage({ params }) {
 
         <div className="relative w-full flex justify-center">
           {!streaming && (
-            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm text-gray-500">
+            <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm z-10 text-gray-500 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               Camera inactive
             </div>
           )}
@@ -207,11 +207,11 @@ export default function MobileUploadPage({ params }) {
             />
             <div
               aria-hidden
-              className="absolute inset-0 flex items-center justify-center pointer-events-none left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <div className="w-full h-full rounded-full border-4 border-white" />
+             
               <div
-                className="absolute inset-0 rounded-full pointer-events-none"
+                className="absolute rounded-full pointer-events-none left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
                 style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)" }}
               />
             </div>
