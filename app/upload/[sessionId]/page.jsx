@@ -49,9 +49,7 @@ export default function MobileUploadPage({ params }) {
       setMsg("");
     } catch (err) {
       console.error("Camera start error", err);
-      setMsg(
-        "Could not start camera — permission denied or no front camera available."
-      );
+      setMsg("Could not start camera — permission denied or no front camera available.");
     }
   }
 
@@ -98,16 +96,12 @@ export default function MobileUploadPage({ params }) {
     ctx.closePath();
     ctx.fill();
 
-    const blob = await new Promise((res) =>
-      canvas.toBlob(res, "image/jpeg", 0.92)
-    );
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
     if (!blob) {
       setMsg("Failed to capture image.");
       return;
     }
-    const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, {
-      type: "image/jpeg",
-    });
+    const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
 
     setFile(capturedFile);
     stopCamera();
@@ -130,10 +124,7 @@ export default function MobileUploadPage({ params }) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`/api/upload/${sessionId}`, {
-        method: "POST",
-        body: fd,
-      });
+      const res = await fetch(`/api/upload/${sessionId}`, { method: "POST", body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || `Upload failed (${res.status})`);
@@ -151,29 +142,11 @@ export default function MobileUploadPage({ params }) {
   return (
     <main className="p-6 max-w-lg mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Upload your photo</h1>
-      <p className="text-sm text-gray-600 mb-4">
-        Session: <span className="font-mono">{sessionId}</span>
-      </p>
+      <p className="text-sm text-gray-600 mb-4">Session: <span className="font-mono">{sessionId}</span></p>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 border rounded-2xl p-4"
-      >
-        <input
-          type="file"
-          accept="image/*"
-          capture="user"
-          ref={cameraInputRef}
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="hidden"
-        />
-        <input
-          type="file"
-          accept="image/*"
-          ref={galleryInputRef}
-          onChange={handleGalleryFile}
-          className="hidden"
-        />
+      <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
+        <input type="file" accept="image/*" capture="user" ref={cameraInputRef} onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
+        <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleGalleryFile} className="hidden" />
 
         <div className="relative w-full flex justify-center">
           {/* {!streaming && (
@@ -182,189 +155,80 @@ export default function MobileUploadPage({ params }) {
             </div>
           )} */}
           <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
-    {/* Video Element */}
-    <video
-      ref={videoRef} // Assuming videoRef is defined elsewhere
-      className={`absolute inset-0 w-full h-full object-cover ${
-        streaming ? "" : "hidden"
-      }`} // Assuming streaming is defined elsewhere
-      playsInline
-      muted
-      autoPlay
-      style={frontCamera ? { transform: "scaleX(-1)" } : undefined} // Assuming frontCamera is defined elsewhere
-    />
+            <video
+              ref={videoRef}
+              className={`absolute inset-0 w-full h-full object-cover ${streaming ? "" : "hidden"}`}
+              playsInline muted autoPlay
+              style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
+            />
+            <div className="absolute inset-0 pointer-events-none z-20">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className="w-full h-full">
+                <defs>
+                  <mask id="hole">
+                    <rect width="100" height="100" fill="black" />
+                    <circle cx="50" cy="50" r="46" fill="white" />
+                  </mask>
 
-    {/* Overlay Container with SVG and CSS */}
-    <div className="absolute inset-0 pointer-events-none z-20">
-      <svg
-        viewBox="0 0 100 100"
-        // FIX: The key change is here. 'none' will force the content to stretch and fill, 
-        // which can lead to an oval shape if the container is not perfectly square in the browser.
-        // We will change it to 'xMidYMid meet' to ensure the aspect ratio is maintained,
-        // which helps keep the circles perfectly round, even if the aspect ratio was broken before.
-        preserveAspectRatio="xMidYMid meet" 
-        className="w-full h-full"
-      >
-        <defs>
-          {/* Mask to create the 'hole' effect */}
-          <mask id="hole-mask">
-            <rect width="100" height="100" fill="black" />
-            <circle cx="50" cy="50" r="40" fill="white" />
-          </mask>
+                  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="1.6" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+                </defs>
+                <rect width="100" height="100" fill="rgba(0,0,0,0.62)" mask="url(#hole)" />
+                {/* <circle cx="50" cy="46" r="30" fill="none" stroke="rgba(255,255,255,0.85)" strokeDasharray="1.5 2.5" strokeWidth="0.8" transform="" /> */}
 
-          {/* Filter for the glow effect on the inner dashed circle */}
-          <filter
-            id="glow-filter"
-            x="-50%"
-            y="-50%"
-            width="200%"
-            height="200%"
-          >
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* 1. The dark background with the hole */}
-        <rect
-          width="100"
-          height="100"
-          fill="rgba(0,0,0,0.9)"
-          mask="url(#hole-mask)"
-        />
-
-        {/* 2. Three faint, solid, pulsating circles (The 'kp' elements) */}
-        {/* These create the soft, radiating rings around the main dashed circle */}
-        <circle
-          className="kp"
-          cx="50"
-          cy="50" // Changed back to 50 for perfect center alignment
-          r="38" // Slightly larger than the dashed circle (r=35)
-          fill="none"
-          stroke="rgba(255,255,255,0.4)"
-          strokeWidth="0.8"
-        />
-        <circle
-          className="kp"
-          cx="50"
-          cy="50" // Changed back to 50 for perfect center alignment
-          r="42" // Second pulsating ring
-          fill="none"
-          stroke="rgba(255,255,255,0.25)"
-          strokeWidth="0.8"
-        />
-        <circle
-          className="kp"
-          cx="50"
-          cy="50" // Changed back to 50 for perfect center alignment
-          r="46" // Third pulsating ring
-          fill="none"
-          stroke="rgba(255,255,255,0.15)"
-          strokeWidth="0.8"
-        />
-
-        {/* 3. The main glowing, dashed circle */}
-        <circle
-          cx="50"
-          cy="50" // Changed back to 50 for perfect center alignment
-          r="35"
-          fill="none"
-          stroke="rgba(255,255,255,0.9)"
-          stroke-dasharray="2 3"
-          stroke-width="1"
-          filter="url(#glow-filter)"
-        />
-      </svg>
-
-      {/* CSS Styles */}
-      <style>{`
-        .kp {
-          transform-origin: center;
-          animation: kpPulse 1.6s infinite ease-in-out;
-        }
-        /* Stagger the animation start time for a ripple effect */
-        /* Note: The nth-child selector works based on the order of elements in the SVG */
-        .kp:nth-child(2) { animation-delay: 0.05s; }
-        .kp:nth-child(3) { animation-delay: 0.1s; }
-
-        @keyframes kpPulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.8; } /* Adjusted scale for a subtle pulse */
-          100% { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
-    </div>
-</div>
+              </svg>
+              <style>{`
+                .kp {
+                  transform-origin: center;
+                  animation: kpPulse 1.6s infinite ease-in-out;
+                }
+                .kp:nth-child(2) { animation-delay: 0.05s; }
+                .kp:nth-child(3) { animation-delay: 0.1s; }
+                .kp:nth-child(4) { animation-delay: 0.15s; }
+                .kp:nth-child(5) { animation-delay: 0.2s; }
+                .kp:nth-child(6) { animation-delay: 0.25s; }
+                @keyframes kpPulse {
+                  0% { transform: scale(1); opacity: 1; }
+                  50% { transform: scale(1.6); opacity: 0.6; }
+                  100% { transform: scale(1); opacity: 1; }
+                }
+              `}</style>
+            </div>
+          </div>
+  
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
 
         <div className="flex gap-3 justify-center">
           {!streaming ? (
-            <button
-              type="button"
-              onClick={startCamera}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white"
-            >
-              Open Camera
-            </button>
+            <button type="button" onClick={startCamera} className="px-4 py-2 rounded-lg bg-blue-600 text-white">Open Camera</button>
           ) : (
-            <button
-              type="button"
-              onClick={capturePhoto}
-              className="px-4 py-2 rounded-lg bg-yellow-500 text-black"
-            >
-              Capture (inside circle)
-            </button>
+            <button type="button" onClick={capturePhoto} className="px-4 py-2 rounded-lg bg-yellow-500 text-black">Capture (inside circle)</button>
           )}
 
-          <button
-            type="button"
-            onClick={() => galleryInputRef.current?.click()}
-            className="px-4 py-2 rounded-lg bg-green-600 text-white"
-          >
-            Upload from Gallery
-          </button>
+          <button type="button" onClick={() => galleryInputRef.current?.click()} className="px-4 py-2 rounded-lg bg-green-600 text-white">Upload from Gallery</button>
 
           {streaming && (
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="px-4 py-2 rounded-lg bg-red-600 text-white"
-            >
-              Close Camera
-            </button>
+            <button type="button" onClick={stopCamera} className="px-4 py-2 rounded-lg bg-red-600 text-white">Close Camera</button>
           )}
         </div>
 
         {preview && (
           <div className="flex justify-center mb-2 mt-3">
-            <img
-              src={preview}
-              alt="preview"
-              className="w-40 h-40 rounded-full object-cover border-4 border-gray-300"
-            />
+            <img src={preview} alt="preview" className="w-40 h-40 rounded-full object-cover border-4 border-gray-300" />
           </div>
         )}
 
         <div className="flex justify-center">
-          <button
-            disabled={busy || !file}
-            className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50"
-          >
-            {busy ? "Uploading..." : "Upload"}
-          </button>
+          <button disabled={busy || !file} className="px-4 py-2 rounded-lg bg-black text-white disabled:opacity-50">{busy ? "Uploading..." : "Upload"}</button>
         </div>
 
         {msg && <div className="text-sm mt-1 text-center">{msg}</div>}
       </form>
 
-      <p className="text-xs text-gray-500 mt-4">
-        Your photo is stored temporarily for this session only.
-      </p>
+      <p className="text-xs text-gray-500 mt-4">Your photo is stored temporarily for this session only.</p>
     </main>
   );
 }
