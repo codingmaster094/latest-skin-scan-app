@@ -195,29 +195,6 @@ export default function MobileUploadPage({ params }) {
               Camera inactive
             </div>
           )}
-
-          <div className="relative">
-            <video
-              ref={videoRef}
-              className={`w-72 h-72 rounded-full object-cover ${streaming ? "" : "hidden"}`}
-              playsInline
-              muted
-              autoPlay
-            />
-            {/* Circular overlay frame */}
-            <div
-              aria-hidden
-              className="absolute inset-0 w-72 h-72 rounded-full pointer-events-none flex items-center justify-center"
-            >
-              {/* Outer semi-transparent dark to emphasize circle: using pseudo overlay via sibling */}
-              <div className="w-full h-full rounded-full border-4 border-white shadow-lg"></div>
-            </div>
-            {/* A subtle full-screen overlay to darken outside circle */}
-            <div className="absolute inset-0 w-72 h-72 rounded-full pointer-events-none">
-              {/* We create outside dark by using box-shadow-like pseudo effect via CSS - simplified here */}
-              {/* (This is optional; you'd typically use complex CSS with ::before/::after for the donut) */}
-            </div>
-          </div>
         </div>
 
         {/* Hidden canvas used for capture */}
