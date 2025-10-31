@@ -10,6 +10,8 @@ export default function MobileUploadPage({ params }) {
 
   // camera state
   const [streaming, setStreaming] = useState(false);
+  // we keep a simple string to decide mirror behavior; your startCamera uses "user"
+  const frontCamera = true; // change to false if you decide to use back camera
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const cameraStreamRef = useRef(null);
@@ -27,13 +29,13 @@ export default function MobileUploadPage({ params }) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [file]);
 
-  // ✅ Always start FRONT camera ("user")
+  // Always start FRONT camera ("user")
   async function startCamera() {
     if (streaming) return;
     try {
       const constraints = {
         video: {
-          facingMode: { ideal: "user" }, // 👈 changed from "environment" to "user"
+          facingMode: { ideal: "user" }, // front camera
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
@@ -45,10 +47,12 @@ export default function MobileUploadPage({ params }) {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // apply mirror to preview via CSS (see video element style below)
         await videoRef.current.play();
       }
 
       setStreaming(true);
+      setMsg("");
     } catch (err) {
       console.error("Camera start error", err);
       setMsg(
@@ -84,8 +88,22 @@ export default function MobileUploadPage({ params }) {
     const ctx = canvas.getContext("2d");
 
     ctx.clearRect(0, 0, outputSize, outputSize);
-    ctx.drawImage(video, sx, sy, size, size, 0, 0, outputSize, outputSize);
 
+    // If front camera (mirrored preview), flip canvas horizontally so captured image matches preview
+    if (frontCamera) {
+      ctx.save();
+      // flip horizontally around vertical center of canvas
+      ctx.translate(outputSize, 0);
+      ctx.scale(-1, 1);
+      // drawImage parameters: source sx, sy, sw, sh, dx, dy, dw, dh
+      ctx.drawImage(video, sx, sy, size, size, 0, 0, outputSize, outputSize);
+      ctx.restore();
+    } else {
+      // back camera: draw normally
+      ctx.drawImage(video, sx, sy, size, size, 0, 0, outputSize, outputSize);
+    }
+
+    // circular mask (applies equally either way)
     ctx.globalCompositeOperation = "destination-in";
     ctx.beginPath();
     ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
@@ -152,11 +170,11 @@ export default function MobileUploadPage({ params }) {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
-        {/* ✅ Hidden input that defaults to FRONT camera */}
+        {/* Hidden input that defaults to FRONT camera */}
         <input
           type="file"
           accept="image/*"
-          capture="user" // 👈 changed from "environment" to "user"
+          capture="user"
           ref={cameraInputRef}
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           className="hidden"
@@ -176,21 +194,26 @@ export default function MobileUploadPage({ params }) {
             </div>
           )}
 
-          <div className="">
+          {/* wrapper with overflow-hidden to avoid stray shadows */}
+          <div className="relative w-72 h-72 rounded-full overflow-hidden">
             <video
               ref={videoRef}
-              className={`w-72 h-72 rounded-full object-cover ${
-                streaming ? "" : "hidden"
-              }`}
+              className={`w-full h-full object-cover ${streaming ? "" : "hidden"}`}
               playsInline
               muted
               autoPlay
+              // mirror preview when front camera so it feels like a mirror
+              style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
             />
             <div
               aria-hidden
-              className="absolute inset-0 w-72 h-72 rounded-full pointer-events-none flex items-center justify-center left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <div className="w-full h-full rounded-full border-4 border-white shadow-lg"></div>
+              <div className="w-full h-full rounded-full border-4 border-white" />
+              <div
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)" }}
+              />
             </div>
           </div>
         </div>
