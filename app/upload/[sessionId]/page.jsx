@@ -176,118 +176,110 @@ export default function MobileUploadPage({ params }) {
         />
 
         <div className="relative w-full flex justify-center">
-          {!streaming && (
-            <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
-              {/* video fills circle */}
-              <video
-                ref={videoRef}
-                className={`absolute inset-0 w-full h-full object-cover ${
-                  streaming ? "" : "hidden"
-                }`}
-                playsInline
-                muted
-                autoPlay
-                style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
-              />
-
-              {/* overlay: corner brackets + mesh + dotted inner ring + pulsing points */}
-              <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
-                <svg
-                  viewBox="0 0 100 100"
-                  width="100%"
-                  height="100%"
-                  style={{ position: "absolute", inset: 0 }}
-                  className="w-full h-full"
-                >
-                  <defs>
-                    <mask id="overlayMask">
-                      <rect width="100" height="100" fill="white" />
-                      <circle cx="50" cy="50" r="48" fill="black" />
-                    </mask>
-                    <filter
-                      id="glow"
-                      x="-50%"
-                      y="-50%"
-                      width="200%"
-                      height="200%"
-                    >
-                      <feGaussianBlur stdDeviation="2.5" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                  </defs>
-                  {/* Dim background with circular cutout */}
-                  <rect
-                    width="100"
-                    height="100"
-                    fill="rgba(0,0,0,0.65)"
-                    mask="url(#overlayMask)"
-                    className="transition-all"
-                  />
-                  {/* Glowing border */}
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="46"
-                    stroke="#22d3ee"
-                    strokeWidth="2"
-                    fill="none"
-                    filter="url(#glow)"
-                  />
-                  {/* Guide mesh (optional) */}
-                  <g stroke="#fff" strokeWidth="0.5" opacity="0.35">
-                    <line x1="50" y1="12" x2="50" y2="88" />
-                    <line x1="12" y1="50" x2="88" y2="50" />
-                    <ellipse cx="50" cy="50" rx="36" ry="44" fill="none" />
-                  </g>
-                  {/* Corner marks */}
-                  <g stroke="#fff" strokeWidth="2">
-                    <polyline points="19,40 19,19 40,19" />
-                    <polyline points="81,40 81,19 60,19" />
-                    <polyline points="19,60 19,81 40,81" />
-                    <polyline points="81,60 81,81 60,81" />
-                  </g>
-                  {/* Pulsing dots */}
-                  {[...Array(6)].map((_, i) => {
-                    const angle = (Math.PI * 2 * i) / 6;
-                    const x = 50 + 42 * Math.cos(angle);
-                    const y = 50 + 42 * Math.sin(angle);
-                    return (
-                      <circle
-                        key={i}
-                        cx={x}
-                        cy={y}
-                        r="2"
-                        fill="#22d3ee"
-                        className="pulse"
-                        style={{ animationDelay: `${i * 0.15}s` }}
-                      />
-                    );
-                  })}
-                </svg>
-                <style>
-                  {`
-      .pulse {
-        transform-origin: center;
-        animation: pulseDot 1.6s infinite;
-      }
-      @keyframes pulseDot {
-        0% { r: 2; opacity: 1; }
-        50% { r: 3.5; opacity: 0.65; }
-        100% { r: 2; opacity: 1; }
-      }
-    `}
-                </style>
-              </div>
-            </div>
-          )}
+          <div className="relative w-72 h-72 rounded-full overflow-hidden bg-black">
+            {streaming && (
+              <>
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  playsInline
+                  muted
+                  autoPlay
+                  style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
+                />
+                <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
+                  <svg
+                    viewBox="0 0 100 100"
+                    width="100%"
+                    height="100%"
+                    style={{ position: "absolute", inset: 0 }}
+                    className="w-full h-full"
+                  >
+                    <defs>
+                      <mask id="overlayMask">
+                        <rect width="100" height="100" fill="white" />
+                        <circle cx="50" cy="50" r="48" fill="black" />
+                      </mask>
+                      <filter
+                        id="glow"
+                        x="-50%"
+                        y="-50%"
+                        width="200%"
+                        height="200%"
+                      >
+                        <feGaussianBlur stdDeviation="2.5" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    <rect
+                      width="100"
+                      height="100"
+                      fill="rgba(0,0,0,0.65)"
+                      mask="url(#overlayMask)"
+                      className="transition-all"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="46"
+                      stroke="#22d3ee"
+                      strokeWidth="2"
+                      fill="none"
+                      filter="url(#glow)"
+                    />
+                    <g stroke="#fff" strokeWidth="0.5" opacity="0.35">
+                      <line x1="50" y1="12" x2="50" y2="88" />
+                      <line x1="12" y1="50" x2="88" y2="50" />
+                      <ellipse cx="50" cy="50" rx="36" ry="44" fill="none" />
+                    </g>
+                    <g stroke="#fff" strokeWidth="2">
+                      <polyline points="19,40 19,19 40,19" />
+                      <polyline points="81,40 81,19 60,19" />
+                      <polyline points="19,60 19,81 40,81" />
+                      <polyline points="81,60 81,81 60,81" />
+                    </g>
+                    {[...Array(6)].map((_, i) => {
+                      const angle = (Math.PI * 2 * i) / 6;
+                      const x = 50 + 42 * Math.cos(angle);
+                      const y = 50 + 42 * Math.sin(angle);
+                      return (
+                        <circle
+                          key={i}
+                          cx={x}
+                          cy={y}
+                          r="2"
+                          fill="#22d3ee"
+                          className="pulse"
+                          style={{ animationDelay: `${i * 0.15}s` }}
+                        />
+                      );
+                    })}
+                  </svg>
+                  <style>
+                    {`
+                      .pulse {
+                        transform-origin: center;
+                        animation: pulseDot 1.6s infinite;
+                      }
+                      @keyframes pulseDot {
+                        0% { r: 2; opacity: 1; }
+                        50% { r: 3.5; opacity: 0.65; }
+                        100% { r: 2; opacity: 1; }
+                      }
+                    `}
+                  </style>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
 
-        <div className="flex gap-3 justify-center">
+        <div className="flex gap-3 justify-center mt-4">
           {!streaming ? (
             <button
               type="button"
