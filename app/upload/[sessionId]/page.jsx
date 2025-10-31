@@ -110,7 +110,9 @@ export default function MobileUploadPage({ params }) {
     ctx.closePath();
     ctx.fill();
 
-    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.92));
+    const blob = await new Promise((res) =>
+      canvas.toBlob(res, "image/jpeg", 0.92)
+    );
     if (!blob) {
       setMsg("Failed to capture image.");
       return;
@@ -169,7 +171,10 @@ export default function MobileUploadPage({ params }) {
         Session: <span className="font-mono">{sessionId}</span>
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4 border rounded-2xl p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 border rounded-2xl p-4"
+      >
         {/* Hidden input that defaults to FRONT camera */}
         <input
           type="file"
@@ -198,14 +203,16 @@ export default function MobileUploadPage({ params }) {
           <div className="relative w-72 h-72 rounded-full overflow-hidden">
             <video
               ref={videoRef}
-              className={`w-full h-full object-cover ${streaming ? "" : "hidden"}`}
+              className={`w-full h-full object-cover ${
+                streaming ? "" : "hidden"
+              }`}
               playsInline
               muted
               autoPlay
               // mirror preview when front camera so it feels like a mirror
               style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
             />
-            <div
+            {/* <div
               aria-hidden
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
@@ -214,6 +221,72 @@ export default function MobileUploadPage({ params }) {
                 className="absolute rounded-full pointer-events-none left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2"
                 style={{ boxShadow: "0 0 0 9999px rgba(0,0,0,0.6)" }}
               />
+            </div> */}
+            {/* Parabolic / oval overlay (replace old overlay) */}
+            <div className="absolute inset-0 pointer-events-none">
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                className="w-full h-full"
+                aria-hidden="true"
+              >
+                <defs>
+                  {/* Mask: white = hole (visible), black = dark */}
+                  <mask id="ovalMask">
+                    <rect x="0" y="0" width="100" height="100" fill="black" />
+                    {/* Ellipse controls the "parabolic" / oval shape.
+            Move cy up (e.g., 40-45) so oval sits higher for the face. */}
+                    <ellipse cx="50" cy="42" rx="38" ry="34" fill="white" />
+                  </mask>
+                  {/* Slight feather for border glow (optional) */}
+                  <filter
+                    id="softGlow"
+                    x="-50%"
+                    y="-50%"
+                    width="200%"
+                    height="200%"
+                  >
+                    <feGaussianBlur stdDeviation="2.2" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                {/* Darken outside using the mask */}
+                <rect
+                  width="100"
+                  height="100"
+                  fill="rgba(0,0,0,0.62)"
+                  mask="url(#ovalMask)"
+                />
+
+                {/* Dashed border for oval (white) */}
+                <ellipse
+                  cx="50"
+                  cy="42"
+                  rx="38"
+                  ry="34"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.92)"
+                  strokeWidth="0.9"
+                  strokeDasharray="2 3"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ filter: "url(#softGlow)" }}
+                />
+
+                {/* Optional alignment guides: small horizontal line where eyes should be */}
+                <line
+                  x1="22"
+                  x2="78"
+                  y1="42"
+                  y2="42"
+                  stroke="rgba(255,255,255,0.06)"
+                  strokeWidth="0.6"
+                  strokeLinecap="round"
+                />
+              </svg>
             </div>
           </div>
         </div>
