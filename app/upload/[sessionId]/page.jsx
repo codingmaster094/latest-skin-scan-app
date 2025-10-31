@@ -193,25 +193,15 @@ export default function MobileUploadPage({ params }) {
         />
 
         <div className="relative w-full flex justify-center">
-          {!streaming && (
+          {/* {!streaming && (
             <div className="w-72 h-72 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed text-sm z-10 text-gray-500 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
               Camera inactive
             </div>
-          )}
+          )} */}
 
           {/* wrapper with overflow-hidden to avoid stray shadows */}
-          <div className="relative w-72 h-72 rounded-full overflow-hidden">
-            <video
-              ref={videoRef}
-              className={`w-full h-full object-cover ${
-                streaming ? "" : "hidden"
-              }`}
-              playsInline
-              muted
-              autoPlay
-              // mirror preview when front camera so it feels like a mirror
-              style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
-            />
+          {/* <div className="relative w-72 h-72 rounded-full overflow-hidden"> */}
+            
             {/* <div
               aria-hidden
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
@@ -223,7 +213,19 @@ export default function MobileUploadPage({ params }) {
               />
             </div> */}
             {/* Parabolic / oval overlay (replace old overlay) */}
+             {!streaming && (
             <div className="absolute inset-0 pointer-events-none">
+              <video
+              ref={videoRef}
+              className={`w-full h-full object-cover ${
+                streaming ? "" : "hidden"
+              }`}
+              playsInline
+              muted
+              autoPlay
+              // mirror preview when front camera so it feels like a mirror
+              style={frontCamera ? { transform: "scaleX(-1)" } : undefined}
+            />
               <svg
                 viewBox="0 0 100 100"
                 preserveAspectRatio="none"
@@ -288,7 +290,8 @@ export default function MobileUploadPage({ params }) {
                 />
               </svg>
             </div>
-          </div>
+              )}
+          {/* </div> */}
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
